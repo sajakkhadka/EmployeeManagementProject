@@ -1,0 +1,301 @@
+package com.webdevelop.controller;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+
+import com.webdevelop.Utils.JavaMail;
+
+import jakarta.servlet.http.HttpSession;
+
+@Controller
+public class EmailController {
+	
+	@Autowired
+	private JavaMail javaService;
+
+	@GetMapping("/contactUs")
+	public String getContact(HttpSession session) {
+		
+			return "contactuS";
+	}
+	
+	@PostMapping("/contactUs")
+	public String postContactUs(@RequestParam("email") String email,@RequestParam("subject") String subject,@RequestParam("message") String message) {
+		javaService.getEmail(email, subject, message);
+		return "ContactuS";
+		
+		
+}
+}
+
+package com.webdevelop.controller;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import com.webdevelop.model.Employee;
+import com.webdevelop.model.Manager;
+import com.webdevelop.service.EmpService;
+import com.webdevelop.service.ManagerService;
+
+@Controller
+public class EmployeeController {
+	
+	@Autowired
+	private EmpService service;
+	
+	@Autowired
+	private ManagerService manService;
+	
+	
+	@GetMapping({"/","/dashboard"})
+		public String getDashboard() {
+		return "Dashboard";
+	}
+		
+	
+	@GetMapping("/addEmployee")
+	private String getEmployee() {
+		return "Employee";
+	}
+	
+	@PostMapping("/employee")
+	private String postEmployee(@ModelAttribute Employee e,@ModelAttribute Manager q,Model m, @RequestParam("cpassword") String cpassword) {
+		if(cpassword.equals(e.getPassword())) {
+		service.addEmployee(e);
+		manService.msave(q);
+		m.addAttribute("message","Register Successfull");
+		return "Employee";
+		}
+	
+	else {
+		m.addAttribute("message","Both Password do not match");
+		return "Employee";
+	}
+	
+	}
+	
+	@GetMapping("/employeeList")
+	private String getEmpList(Model m){
+		m.addAttribute("elist",service.filterByRole("Employee"));
+		return "employeeList";
+	}
+	
+	
+	@GetMapping("/employee_delete")
+	private String getDelete(@RequestParam("id") int id, RedirectAttributes m) {
+		m.addFlashAttribute("message","Deleted Sucessfully");
+		service.deleteEmployee(id);
+		return "redirect:employeeList";
+	}
+	
+	@GetMapping("/employee_edit")
+	public String getEditEmployee(@RequestParam("id") int id, Model m) {
+		m.addAttribute("list",service.getAllDataById(id));
+		return "employeeUpdate";
+		}
+	
+	
+	@PostMapping("/employee_edit")
+	public String postEmployeeEdit(@ModelAttribute Employee u,RedirectAttributes m) {
+		service.update(u);
+		m.addFlashAttribute("message","Edited Successfull");
+		return "redirect:employeeList";
+	}
+	
+
+	
+	
+
+	
+	
+	
+	
+	
+	
+}
+
+package com.webdevelop.controller;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+
+import com.webdevelop.Utils.JavaMail;
+import com.webdevelop.model.Employee;
+import com.webdevelop.model.Manager;
+import com.webdevelop.repository.EmpRepository;
+import com.webdevelop.repository.ManagerRepository;
+
+import jakarta.servlet.http.HttpSession;
+
+
+@Controller
+public class LoginController {
+	
+	@Autowired
+	private EmpRepository empRepo;
+	
+	@Autowired
+	private ManagerRepository maRepo;
+	
+	@Autowired
+	private JavaMail mailService;
+	
+	@GetMapping("/dashboard")
+	public String getDashboard() {
+		return "Dashboard";
+	}
+	
+	
+	@GetMapping("/login")
+	public String getLogin() {
+		return "Login";
+	}
+	
+	@PostMapping("/login")
+	public String postLogin(@ModelAttribute Employee e,@ModelAttribute Manager m, Model nn,HttpSession session) {
+		Employee data=empRepo.findByEmailAndPassword(e.getEmail(), e.getPassword());
+		Manager dat=maRepo.findByEmailAndPassword(m.getEmail(), m.getPassword());
+			if(!(data==null)) {
+				session.setAttribute("activeUser",data);
+				session.setMaxInactiveInterval(500);
+				return "Dashboard";
+			}
+			else if(!(dat==null)) {
+				session.setAttribute("activeUser", dat);
+				session.setMaxInactiveInterval(500);
+				return "Dashboard";
+			}			
+			else {
+				nn.addAttribute("message","Incorrect Credentials, User do not match");
+				return "Login";
+			}
+	}
+			
+	
+			
+	
+	
+		
+
+	
+
+}
+
+
+package com.webdevelop.controller;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+
+import com.webdevelop.model.Employee;
+import com.webdevelop.service.EmpService;
+import com.webdevelop.service.ManagerService;
+
+@Controller
+public class ManagerAssignController {
+	@Autowired
+	private ManagerService service;
+	
+	@Autowired
+	private EmpService emService;
+	
+	
+	@GetMapping("/manager_assign")
+	public String getManagerAssignList(Model m) {
+		m.addAttribute("data",emService.filterByRole("Employee"));
+		m.addAttribute("manData",service.getByRole("Manager"));
+		return "managerAssignList";
+	}
+	
+	@GetMapping("/assignManager")
+	public String getAssignManager(@RequestParam("id") int id, Model m) {
+		m.addAttribute("data",emService.getAllDataById(id));
+		m.addAttribute("manData",service.getByRole("Manager"));
+		return "managerAssign";
+
+}
+	
+	@PostMapping("/assignEmployeeManager")
+	public String getEmployeeManager(@ModelAttribute Employee e) {
+		Employee existing=emService.getAllDataById(e.getId());
+		existing.setManager(e.getManager());
+		emService.update(existing);
+		return "redirect:manager_assign";
+}
+		
+}
+
+
+package com.webdevelop.controller;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import com.webdevelop.model.Manager;
+import com.webdevelop.service.ManagerService;
+
+@Controller
+public class ManagerController {
+	
+	@Autowired
+	private ManagerService service;
+	
+	
+	@GetMapping("/managerList")
+	public String getManagerList(Model m) {
+		m.addAttribute("mlist",service.getByRole("Manager"));
+		return "managerList";
+	}
+	
+	
+	@GetMapping("/manager_delete")
+	public String deletetManager(@RequestParam("id") int id) {
+		service.mDelete(id);
+		return "redirect:managerList";
+		
+	}
+
+	@GetMapping("/manager_edit")
+	public String editManager(@RequestParam("id") int id, Model m) {
+		m.addAttribute("mlist",service.getManagerDataById(id));
+		return "managerUpdate";
+	}
+	
+	
+	@PostMapping("/manager_edit")
+	public String postEditManager(@ModelAttribute Manager e, RedirectAttributes ra) {
+		service.mUpdate(e);
+		ra.addFlashAttribute("message1", "Update Successful");
+		return "redirect:managerList";
+		
+	}
+}
+
+
+
+
